@@ -1,0 +1,7 @@
+# compiled python bytecode
+*.py[cod]
+
+# log file
+*.log
+*.out
+*.err
