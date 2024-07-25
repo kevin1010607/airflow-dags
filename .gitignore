@@ -5,3 +5,6 @@
 *.log
 *.out
 *.err
+
+# helm airflow config file
+values.yaml
