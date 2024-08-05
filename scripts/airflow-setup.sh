@@ -67,6 +67,8 @@ helm install airflow apache-airflow/airflow \
 # Run in the background
 sleep 60s
 kubectl port-forward svc/airflow-webserver 8080:8080 \
-    --address 10.121.252.191 \
+    --address 10.121.252.189 \
     --namespace airflow \
     2>&1 > /dev/null &
+
+
