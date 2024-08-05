@@ -9,11 +9,9 @@ def print_hello():
     print("Hello from Airflow!")
 
 # Instantiate the DAG
-dag = DAG(
-    'simple_python_operator_dag',
-    description='A simple PythonOperator DAG',
-    catchup=False,
-)
+dag = DAG('hello_world', description='Hello World DAG',
+          schedule_interval='0 12 * * *',
+          start_date=datetime(2022, 8, 24), catchup=False)
 
 # Define the task
 hello_task = PythonOperator(
