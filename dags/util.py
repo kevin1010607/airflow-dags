@@ -11,12 +11,14 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
 from pyspark.sql import DataFrame, SparkSession
 from hdfs import InsecureClient
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
 
 DEBUG = True
 ALERT_SERVER_ENDPOINT = 'http://10.121.252.194:5111'
 RESULT_SERVER_ENDPOINT = 'http://10.121.252.194:5888'
-ML_SERVICE_ENDPOINT = 'http://10.121.252.194:7777'
+ML_SERVICE_ENDPOINT = 'model-service-service:7777'
 
 
 def _DC(data: pd.DataFrame) -> pd.DataFrame:
@@ -206,10 +208,19 @@ def _LOG_PARAMETER(model_id: str, parameter) -> Dict[str, Any]:
 def _GET_MOTION_AND_QA(date:str, lot_id:str )-> pd.DataFrame:
 
     client = (
-        SparkSession.builder.appName("data_analyzer")
+        SparkSession.Builder()
+        .appName("data_analyzer")
+        .master("local[1]")
         .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
+            2,
+        )
+        .config(
+            "spark.sql.execution.arrow.pyspark.enabled",
+            "true" if True else "false",
+        )
         .enableHiveSupport()
-        .master("spark://hadoop-platform:7077")
         .getOrCreate()
     )
     sql_str = \

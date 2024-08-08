@@ -43,8 +43,8 @@ yq eval -i '
   .airflowVersion = env(AIRFLOW_VERSION) |
   .images.airflow.repository = env(USERNAME) + "/airflow-custom" |
   .images.airflow.tag = env(AIRFLOW_VERSION) |
-  .images.pod_template.repository = env(USERNAME) + "/airflow-custom" |
-  .images.pod_template.tag = env(AIRFLOW_VERSION) |
+  .images.pod_template.repository = "ryan910707" + "/spark-k8s" |
+  .images.pod_template.tag = "v1" |
   .webserverSecretKeySecretName = "airflow-webserver-secret" |
   .webserver.livenessProbe.initialDelaySeconds = 25 |
   .webserver.startupProbe.failureThreshold = 10 |
@@ -54,8 +54,12 @@ yq eval -i '
   .dags.gitSync.branch = "main" |
   .dags.gitSync.subPath = "dags" |
   .dags.gitSync.sshKeySecret = "airflow-ssh-git-secret" |
-  .dags.gitSync.knownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
-' values.yaml
+  .dags.gitSync.knownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" |
+  .config.kubernetes.worker_container_repository = "{{ .Values.images.pod_template.repository | default .Values.defaultAirflowRepository }}" |
+  .config.kubernetes.worker_container_tag = "{{ .Values.images.pod_template.tag | default .Values.defaultAirflowTag }}" |
+  .config.kubernetes_executor.worker_container_repository = "{{ .Values.images.pod_template.repository | default .Values.defaultAirflowRepository }}" |
+  .config.kubernetes_executor.worker_container_tag = "{{ .Values.images.pod_template.tag | default .Values.defaultAirflowTag }}" 
+' values.yaml 
 
 # Install customized airflow
 helm install airflow apache-airflow/airflow \
