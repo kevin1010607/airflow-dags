@@ -16,9 +16,8 @@ from pyspark.sql import functions as F
 
 
 DEBUG = True
-ALERT_SERVER_ENDPOINT = 'http://10.121.252.194:5111'
-RESULT_SERVER_ENDPOINT = 'http://10.121.252.194:5888'
-ML_SERVICE_ENDPOINT = 'model-service-service:7777'
+RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
+ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
 
 
 def _DC(data: pd.DataFrame) -> pd.DataFrame:
@@ -352,6 +351,7 @@ def _LOG_MODEL(model_name, model):
         return {'state': False, 'message': str(err)}
 
 def _SEND_RESULT(model_id, params, metrics):
+    return None
     url = f'{RESULT_SERVER_ENDPOINT}/api/v1/dags/response/put'
     run_id = params.run_id
     execution_date = params.execution_date
