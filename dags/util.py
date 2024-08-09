@@ -19,7 +19,7 @@ from pyspark.sql import functions as F
 DEBUG = True
 ALERT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
 RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
-ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
+ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30001'
 
 
 def generate_mock_data(n_samples=200):
