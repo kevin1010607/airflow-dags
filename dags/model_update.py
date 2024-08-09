@@ -10,7 +10,7 @@ from airflow.operators.python import get_current_context
 
 from util import (
     _DC, _EXTRACT_DATETIME, _FE, _GET_MOTION_AND_QA, _LOAD_MODEL, 
-    _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT, 
+    _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT, generate_mock_data, 
 )
 
 
