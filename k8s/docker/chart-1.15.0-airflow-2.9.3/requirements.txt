@@ -6,3 +6,4 @@ mlflow
 catboost
 pyspark
 hdfs
+pyarrow

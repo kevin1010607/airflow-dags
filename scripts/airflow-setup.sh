@@ -1,9 +1,9 @@
 # Create the cluster
 cd ../k8s
-kind create cluster \
-    --name airflow-cluster \
-    --config kind-cluster.yaml
-kubectl cluster-info
+# kind create cluster \
+#     --name airflow-cluster \
+#     --config kind-cluster.yaml
+# kubectl cluster-info
 
 # Create airflow namespace
 kubectl create namespace airflow
@@ -33,18 +33,20 @@ helm repo update
 helm search repo airflow --versions
 
 # Apply customized setting on airflow
-export USERNAME=kevin1010607
+export USERNAME=ryan910707
 export CHART_VERSION=1.15.0
-export AIRFLOW_VERSION=2.9.3
+export AIRFLOW_VERSION=latest
+rm -f values.yaml
 helm show values apache-airflow/airflow --version ${CHART_VERSION} > values.yaml
 yq eval -i '
-  .defaultAirflowRepository = env(USERNAME) + "/airflow-custom" |
+  .defaultAirflowRepository = env(USERNAME) + "/spark-airflow" |
   .defaultAirflowTag = env(AIRFLOW_VERSION) |
-  .airflowVersion = env(AIRFLOW_VERSION) |
-  .images.airflow.repository = env(USERNAME) + "/airflow-custom" |
+  .airflowVersion = "2.9.3" |
+  .images.airflow.repository = env(USERNAME) + "/spark-airflow" |
   .images.airflow.tag = env(AIRFLOW_VERSION) |
-  .images.pod_template.repository = "ryan910707" + "/spark-k8s" |
-  .images.pod_template.tag = "v1" |
+  .images.pod_template.repository = env(USERNAME) + "/spark-airflow" |
+  .images.pod_template.tag = env(AIRFLOW_VERSION) |
+  .workers.hostAliases = [{"ip":"10.121.252.198","hostnames":["hadoop-platform"]}] |
   .webserverSecretKeySecretName = "airflow-webserver-secret" |
   .webserver.livenessProbe.initialDelaySeconds = 25 |
   .webserver.startupProbe.failureThreshold = 10 |
@@ -69,10 +71,9 @@ helm install airflow apache-airflow/airflow \
     --debug
 
 # Run in the background
-sleep 60s
-kubectl port-forward svc/airflow-webserver 8080:8080 \
+# sleep 60s
+nohup kubectl port-forward svc/airflow-webserver 8081:8080 \
     --address 10.121.252.189 \
     --namespace airflow \
     2>&1 > /dev/null &
-
 
