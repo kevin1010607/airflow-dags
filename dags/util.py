@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime, timedelta
 import os
 import shutil
 import string
@@ -16,11 +17,33 @@ from pyspark.sql import functions as F
 
 
 DEBUG = True
-ALERT_SERVER_ENDPOINT = 'http://10.121.252.194:5111'
-RESULT_SERVER_ENDPOINT = 'http://10.121.252.194:5888'
-ML_SERVICE_ENDPOINT = 'model-service-service:7777'
+ALERT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
+RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
+ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
 
-
+def generate_mock_data(n_samples=200):
+    # Generate mock data
+    np.random.seed(42)
+    
+    equipment_ids = ['EQ' + str(i).zfill(3) for i in range(1, 6)]
+    lf_ids = ['LF' + str(i).zfill(3) for i in range(1, 4)]
+    
+    data = {
+        'equipment_id': np.random.choice(equipment_ids, n_samples),
+        'lf_id': np.random.choice(lf_ids, n_samples),
+        'proc_datetime': [datetime(2024, 1, 1) + timedelta(minutes=i) for i in range(n_samples)],
+        'heat_pre': np.random.uniform(100, 200, n_samples),
+        'al_squeeze_out_x': np.random.normal(10, 2, n_samples),
+        'al_squeeze_out_y': np.random.normal(15, 3, n_samples),
+        'outer_ball_size_x': np.random.normal(50, 5, n_samples),
+        'outer_ball_size_y': np.random.normal(55, 6, n_samples),
+        'ball_thickness': np.random.normal(20, 2, n_samples),
+        'loop_height': np.random.normal(30, 3, n_samples),
+        'outer_ball_shape': np.random.uniform(0.8, 1.2, n_samples),
+        'inner_ball_shape': np.random.uniform(0.9, 1.1, n_samples)
+    }
+    
+    return pd.DataFrame(data)
 def _DC(data: pd.DataFrame) -> pd.DataFrame:
     """Drop rows with missing values from the dataframe.
     
@@ -352,6 +375,7 @@ def _LOG_MODEL(model_name, model):
         return {'state': False, 'message': str(err)}
 
 def _SEND_RESULT(model_id, params, metrics):
+    return None
     url = f'{RESULT_SERVER_ENDPOINT}/api/v1/dags/response/put'
     run_id = params.run_id
     execution_date = params.execution_date

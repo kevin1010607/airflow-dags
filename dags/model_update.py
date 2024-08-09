@@ -51,7 +51,8 @@ def model_update():
         date = params['date']
         lot_id = params['lot_id']
 
-        raw_data = _GET_MOTION_AND_QA(date, lot_id)
+        # raw_data = _GET_MOTION_AND_QA(date, lot_id)
+        raw_data = generate_mock_data()
     
         return raw_data
     

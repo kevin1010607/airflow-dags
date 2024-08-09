@@ -1,7 +1,7 @@
 from airflow.decorators import dag, task
 
 
-@dag()
+@dag(schedule=None)
 def taskflow():
     @task(task_id="extract", retries=2)
     def extract_bitcoin_price():

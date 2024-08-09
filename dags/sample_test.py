@@ -18,22 +18,27 @@ dag = DAG(
     'spark_data_fetch',
     default_args=default_args,
     description='A DAG to fetch data using PySpark',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=None,
 )
 
 def fetch_data_with_spark(**kwargs):
     date = "2024-01-01"
     lot_id = 'ATWLOT-010124-0852-553-001'  # Replace with actual lot_id or pass it as a parameter
 
-    # Replace these IP addresses with your actual server IPs
-    spark_master_ip = "10.121.252.198"  # Example IP, replace with your Spark master IP
-    hive_metastore_ip = "10.121.252.198"  # Example IP, replace with your Hive metastore IP
-
     client = (
-        SparkSession.builder.appName("data_analyzer")
-        .config("spark.hive.metastore.uris", f"thrift://{hive_metastore_ip}:9083")
+        SparkSession.Builder()
+        .appName("data_analyzer")
+        .master("local[1]")
+        .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
+            2,
+        )
+        .config(
+            "spark.sql.execution.arrow.pyspark.enabled",
+            "true" if True else "false",
+        )
         .enableHiveSupport()
-        .master(f"spark://{spark_master_ip}:7077")
         .getOrCreate()
     )
 

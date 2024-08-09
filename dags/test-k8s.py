@@ -13,7 +13,7 @@ default_args = {
 dag = DAG(
     'test-k8s',
     default_args=default_args,
-    schedule_interval=timedelta(minutes=10),
+    schedule_interval=None,
 )
 
 start = EmptyOperator(task_id='run_this_first', dag=dag)
