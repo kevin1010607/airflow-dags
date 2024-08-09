@@ -21,6 +21,7 @@ ALERT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
 RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
 ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
 
+
 def generate_mock_data(n_samples=200):
     # Generate mock data
     np.random.seed(42)
