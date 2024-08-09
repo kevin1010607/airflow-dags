@@ -238,7 +238,7 @@ def model_update():
     # Task: collect metric
     collect_metric_response = collect_metric(metrics)
     # Task: send result
-    # send_result_response = send_result(metrics)
+    send_result_response = send_result(metrics)
 
 
 # Define the DAG
