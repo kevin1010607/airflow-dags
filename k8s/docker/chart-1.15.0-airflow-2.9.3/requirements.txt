@@ -1,9 +1,11 @@
-numpy
-pandas
-scikit-learn
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
 psycopg2-binary
 mlflow
 catboost
-pyspark
-hdfs
-pyarrow
+pyspark==3.5.1
+hdfs==2.7.3
+pyarrow==17.0.0
+evidently==0.4.36
+pyod==2.0.1
