@@ -60,7 +60,8 @@ yq eval -i '
   .config.kubernetes.worker_container_repository = "{{ .Values.images.pod_template.repository | default .Values.defaultAirflowRepository }}" |
   .config.kubernetes.worker_container_tag = "{{ .Values.images.pod_template.tag | default .Values.defaultAirflowTag }}" |
   .config.kubernetes_executor.worker_container_repository = "{{ .Values.images.pod_template.repository | default .Values.defaultAirflowRepository }}" |
-  .config.kubernetes_executor.worker_container_tag = "{{ .Values.images.pod_template.tag | default .Values.defaultAirflowTag }}" 
+  .config.kubernetes_executor.worker_container_tag = "{{ .Values.images.pod_template.tag | default .Values.defaultAirflowTag }}" |
+  .config.core.enable_xcom_pickling= 'True'
 ' values.yaml 
 
 # Install customized airflow
