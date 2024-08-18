@@ -5,9 +5,11 @@ from time import perf_counter
 from typing import List, Tuple
 from warnings import simplefilter
 
+import hdfs
 import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as pc
+import pyarrow.fs as fs
 import pyarrow.parquet as pq
 from airflow.decorators import dag, task
 from airflow.models.param import Param
@@ -28,6 +30,9 @@ from sklearn.preprocessing import StandardScaler
 simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
 HDFS_URL = "hdfs:///hadoop-platform:9000"
+HDFS_HOST = "hadoop-platform"
+HDFS_PORT = 9000
+HDFS_USER = "hdoop"
 STORAGE_PATH = "/user/mlops"
 NUMERICAL_COLS = [
     "efo_chargetime",
@@ -255,6 +260,49 @@ class BaseTask:
     def run(self):
         raise NotImplementedError("run method is not implemented")
 
+    def write_df_to_hdfs_csv(self, df: pd.DataFrame, path: str):
+        path = path.replace(":", "-")
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        adf = pa.Table.from_pandas(df)
+        pc.write_csv(adf, path, filesystem=ahdfs)
+
+    def read_csv_from_hdfs(self, path: str) -> pd.DataFrame:
+        path = path.replace(":", "-")
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        df = pc.read_csv(path, filesystem=ahdfs).to_pandas()
+        return df
+
+    def write_df_to_hdfs_parquet(self, df: pd.DataFrame, path: str):
+        path = path.replace(":", "-")
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        adf = pa.Table.from_pandas(df)
+        pq.write_table(adf, path, filesystem=ahdfs)
+
+    def read_parquet_from_hdfs(self, path: str) -> pd.DataFrame:
+        path = path.replace(":", "-")
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        df = pq.read_table(path, filesystem=ahdfs).to_pandas()
+        return df
+
+    def write_str_to_hdfs(self, s: str, path: str):
+        path = path.replace(":", "-")
+        hdfs_client = hdfs.InsecureClient(HDFS_URL, user=HDFS_USER)
+        with hdfs_client.write(path) as writer:
+            writer.write(s.encode())
+
+    def rm_hdfs(self, path: str, recursive=False) -> bool:
+        """Removes the file or directory in hdfs
+
+        Replace the colon in the path with a dash to avoid hdfs error
+
+        :param str path: the path to remove
+        :return bool: the status of the removal, True if successful, False if the path does not exist
+        """
+        path = path.replace(":", "-")
+        hdfs_client = hdfs.InsecureClient(HDFS_URL, user=HDFS_USER)
+        status = hdfs_client.delete(path, recursive=recursive)
+        return status
+
 
 class CollectReferenceTask(BaseTask):
     def __init__(self, context):
@@ -287,11 +335,7 @@ class CollectReferenceTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             reference_path = os.path.join(path, "reference_data.parquet")
             # Save to hdfs
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            hdfs_client.mkdir(path)
-            adf = pa.Table.from_pandas(reference_df)
-            with hdfs_client.open(reference_path, "wb") as f:
-                pq.write_table(adf, f)
+            self.write_df_to_hdfs_parquet(reference_df, reference_path)
             print(
                 f"Saving reference data took {perf_counter() - start_save_ts} sec."
             )
@@ -369,11 +413,7 @@ class CollectCurrentTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             current_path = os.path.join(path, "current_data.parquet")
             # Save to hdfs
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            hdfs_client.mkdir(path)
-            adf = pa.Table.from_pandas(current_df)
-            with hdfs_client.open(current_path, "wb") as f:
-                pq.write_table(adf, f)
+            self.write_df_to_hdfs_parquet(current_df, current_path)
             print(
                 f"Saving current data took {perf_counter() - start_save_ts} sec."
             )
@@ -469,9 +509,7 @@ class DetectOutliersTask(BaseTask):
             start_load_ts = perf_counter()
             current_path = collect_current_task["current_path"]
             current_df: pd.DataFrame
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            with hdfs_client.open(current_path, "rb") as f:
-                current_df = pq.read_table(f).to_pandas()
+            current_df = self.read_parquet_from_hdfs(current_path)
             print(
                 f"Loading current data took {perf_counter() - start_load_ts} sec."
             )
@@ -487,10 +525,7 @@ class DetectOutliersTask(BaseTask):
             start_save_ts = perf_counter()
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             outliers_path = os.path.join(path, "outliers.csv")
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            adf = pa.Table.from_pandas(outliers)
-            with hdfs_client.open(outliers_path, "wb") as f:
-                pc.write_csv(adf, f)
+            self.write_df_to_hdfs_csv(outliers, outliers_path)
             print(
                 f"Saving outliers took {perf_counter() - start_save_ts} sec."
             )
@@ -557,19 +592,14 @@ class DetectDriftTask(BaseTask):
             start_load_ts = perf_counter()
             reference_path = collect_reference_task["reference_path"]
             current_path = collect_current_task["current_path"]
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            reference_df: pd.DataFrame
-            with hdfs_client.open(reference_path, "rb") as f:
-                reference_df = pq.read_table(f).to_pandas()
+            reference_df = self.read_parquet_from_hdfs(reference_path)
             # if the reference data is empty, skip the drift detection
             if reference_df.empty:
                 return {
                     "drift_report_json_path": None,
                     "drift_report_html_path": None,
                 }
-            current_df: pd.DataFrame
-            with hdfs_client.open(current_path, "rb") as f:
-                current_df = pq.read_table(f).to_pandas()
+            current_df = self.read_parquet_from_hdfs(current_path)
             print(
                 f"Loading reference and current data took {perf_counter() - start_load_ts} sec."
             )
@@ -588,11 +618,8 @@ class DetectDriftTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             drift_report_json_path = os.path.join(path, "drift_report.json")
             drift_report_html_path = os.path.join(path, "drift_report.html")
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
-            with hdfs_client.open(drift_report_json_path, "wb") as writer:
-                writer.write(report_json_str.encode())
-            with hdfs_client.open(drift_report_html_path, "wb") as writer:
-                writer.write(report_html_str.encode())
+            self.write_str_to_hdfs(report_json_str, drift_report_json_path)
+            self.write_str_to_hdfs(report_html_str, drift_report_html_path)
             print(
                 f"Saving drift report took {perf_counter() - start_save_ts} sec."
             )
@@ -678,15 +705,12 @@ class CleanupTask(BaseTask):
         try:
             # Cleanup reference and current data
             start_cleanup_ts = perf_counter()
-            hdfs_client = pa.hdfs.connect(HDFS_URL, user="hdoop")
             if collect_reference_task["status"] == TaskStatus.SUCCESS.value:
                 reference_path = collect_reference_task["reference_path"]
-                if hdfs_client.exists(reference_path):
-                    hdfs_client.rm(reference_path)
+                self.rm_hdfs(reference_path)
             if collect_current_task["status"] == TaskStatus.SUCCESS.value:
                 current_path = collect_current_task["current_path"]
-                if hdfs_client.exists(current_path):
-                    hdfs_client.rm(current_path)
+                self.rm_hdfs(current_path)
             print(
                 f"Cleaning up reference and current data took {perf_counter() - start_cleanup_ts} sec."
             )
