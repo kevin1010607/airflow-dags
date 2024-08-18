@@ -217,7 +217,7 @@ class TaskStatus(Enum):
 class BaseTask:
     def __init__(self, context):
         self.context = context
-        self.dag_run_id = context["dag_run"].run_id
+        self.dag_run_id = str(context["dag_run"].run_id).replace(":", "-")
 
     def extract_params(self) -> Tuple[List[str], List[str]]:
         """Extracts the date and lot_id from the context
@@ -259,18 +259,13 @@ class BaseTask:
     def run(self):
         raise NotImplementedError("run method is not implemented")
 
-    def _process_path(self, path: str) -> str:
-        return path.replace(":", "-").replace("+", "-")
-
     def _write_df_to_hdfs_csv(self, df: pd.DataFrame, path: str):
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         adf = pa.Table.from_pandas(df)
         with ahdfs.open_output_stream(path) as f:
             pc.write_csv(adf, f)
 
     def _read_csv_from_hdfs(self, path: str) -> pd.DataFrame:
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         with ahdfs.open_input_stream(path) as f:
             adf = pc.read_csv(f)
@@ -278,19 +273,16 @@ class BaseTask:
             return df
 
     def _write_df_to_hdfs_parquet(self, df: pd.DataFrame, path: str):
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         adf = pa.Table.from_pandas(df)
         pq.write_table(adf, path, filesystem=ahdfs)
 
     def _read_parquet_from_hdfs(self, path: str) -> pd.DataFrame:
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         df = pq.read_table(path, filesystem=ahdfs).to_pandas()
         return df
 
     def _write_str_to_hdfs(self, s: str, path: str):
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         with ahdfs.open_output_stream(path) as f:
             f.write(s.encode())
@@ -303,7 +295,6 @@ class BaseTask:
         :param str path: the path to remove
         :return bool: the status of the removal, True if successful, False if the path does not exist
         """
-        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         file_info = ahdfs.get_file_info(path)
         if file_info.type == FileType.File:
