@@ -5,7 +5,6 @@ from time import perf_counter
 from typing import List, Tuple
 from warnings import simplefilter
 
-import hdfs
 import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as pc
@@ -17,6 +16,7 @@ from airflow.operators.python import get_current_context
 from evidently import ColumnMapping
 from evidently.metric_preset import DataDriftPreset, DataQualityPreset
 from evidently.report import Report
+from pyarrow.fs import FileType
 from pyod.models.ecod import ECOD
 from pyspark.sql import SparkSession
 from sklearn.preprocessing import StandardScaler
@@ -29,7 +29,6 @@ from sklearn.preprocessing import StandardScaler
 
 simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
-HDFS_URL = "hdfs:///hadoop-platform:9000"
 HDFS_HOST = "hadoop-platform"
 HDFS_PORT = 9000
 HDFS_USER = "hdoop"
@@ -259,7 +258,7 @@ class BaseTask:
 
     def run(self):
         raise NotImplementedError("run method is not implemented")
-    
+
     def _process_path(self, path: str) -> str:
         return path.replace(":", "-").replace("+", "-")
 
@@ -296,7 +295,7 @@ class BaseTask:
         with ahdfs.open_output_stream(path) as f:
             f.write(s.encode())
 
-    def _rm_hdfs(self, path: str, recursive=False) -> bool:
+    def _rm_hdfs(self, path: str) -> bool:
         """Removes the file or directory in hdfs
 
         Replace the colon in the path with a dash to avoid hdfs error
@@ -305,9 +304,15 @@ class BaseTask:
         :return bool: the status of the removal, True if successful, False if the path does not exist
         """
         path = self._process_path(path)
-        hdfs_client = hdfs.InsecureClient(HDFS_URL, user=HDFS_USER)
-        status = hdfs_client.delete(path, recursive=recursive)
-        return status
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        file_info = ahdfs.get_file_info(path)
+        if file_info.type == FileType.File:
+            ahdfs.delete_file(path)
+            return True
+        elif file_info.type == FileType.Directory:
+            ahdfs.delete_dir(path)
+            return True
+        return False
 
 
 class CollectReferenceTask(BaseTask):
