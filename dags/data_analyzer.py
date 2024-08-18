@@ -259,38 +259,44 @@ class BaseTask:
 
     def run(self):
         raise NotImplementedError("run method is not implemented")
+    
+    def _process_path(self, path: str) -> str:
+        return path.replace(":", "-").replace("+", "-")
 
-    def write_df_to_hdfs_csv(self, df: pd.DataFrame, path: str):
-        path = path.replace(":", "-")
+    def _write_df_to_hdfs_csv(self, df: pd.DataFrame, path: str):
+        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         adf = pa.Table.from_pandas(df)
-        pc.write_csv(adf, path, filesystem=ahdfs)
+        with ahdfs.open_output_stream(path) as f:
+            pc.write_csv(adf, f)
 
-    def read_csv_from_hdfs(self, path: str) -> pd.DataFrame:
-        path = path.replace(":", "-")
+    def _read_csv_from_hdfs(self, path: str) -> pd.DataFrame:
+        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
-        df = pc.read_csv(path, filesystem=ahdfs).to_pandas()
-        return df
+        with ahdfs.open_input_stream(path) as f:
+            adf = pc.read_csv(f)
+            df = adf.to_pandas()
+            return df
 
-    def write_df_to_hdfs_parquet(self, df: pd.DataFrame, path: str):
-        path = path.replace(":", "-")
+    def _write_df_to_hdfs_parquet(self, df: pd.DataFrame, path: str):
+        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         adf = pa.Table.from_pandas(df)
         pq.write_table(adf, path, filesystem=ahdfs)
 
-    def read_parquet_from_hdfs(self, path: str) -> pd.DataFrame:
-        path = path.replace(":", "-")
+    def _read_parquet_from_hdfs(self, path: str) -> pd.DataFrame:
+        path = self._process_path(path)
         ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
         df = pq.read_table(path, filesystem=ahdfs).to_pandas()
         return df
 
-    def write_str_to_hdfs(self, s: str, path: str):
-        path = path.replace(":", "-")
-        hdfs_client = hdfs.InsecureClient(HDFS_URL, user=HDFS_USER)
-        with hdfs_client.write(path) as writer:
-            writer.write(s.encode())
+    def _write_str_to_hdfs(self, s: str, path: str):
+        path = self._process_path(path)
+        ahdfs = fs.HadoopFileSystem(HDFS_HOST, HDFS_PORT, user=HDFS_USER)
+        with ahdfs.open_output_stream(path) as f:
+            f.write(s.encode())
 
-    def rm_hdfs(self, path: str, recursive=False) -> bool:
+    def _rm_hdfs(self, path: str, recursive=False) -> bool:
         """Removes the file or directory in hdfs
 
         Replace the colon in the path with a dash to avoid hdfs error
@@ -298,7 +304,7 @@ class BaseTask:
         :param str path: the path to remove
         :return bool: the status of the removal, True if successful, False if the path does not exist
         """
-        path = path.replace(":", "-")
+        path = self._process_path(path)
         hdfs_client = hdfs.InsecureClient(HDFS_URL, user=HDFS_USER)
         status = hdfs_client.delete(path, recursive=recursive)
         return status
@@ -335,7 +341,7 @@ class CollectReferenceTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             reference_path = os.path.join(path, "reference_data.parquet")
             # Save to hdfs
-            self.write_df_to_hdfs_parquet(reference_df, reference_path)
+            self._write_df_to_hdfs_parquet(reference_df, reference_path)
             print(
                 f"Saving reference data took {perf_counter() - start_save_ts} sec."
             )
@@ -413,7 +419,7 @@ class CollectCurrentTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             current_path = os.path.join(path, "current_data.parquet")
             # Save to hdfs
-            self.write_df_to_hdfs_parquet(current_df, current_path)
+            self._write_df_to_hdfs_parquet(current_df, current_path)
             print(
                 f"Saving current data took {perf_counter() - start_save_ts} sec."
             )
@@ -509,7 +515,7 @@ class DetectOutliersTask(BaseTask):
             start_load_ts = perf_counter()
             current_path = collect_current_task["current_path"]
             current_df: pd.DataFrame
-            current_df = self.read_parquet_from_hdfs(current_path)
+            current_df = self._read_parquet_from_hdfs(current_path)
             print(
                 f"Loading current data took {perf_counter() - start_load_ts} sec."
             )
@@ -525,7 +531,7 @@ class DetectOutliersTask(BaseTask):
             start_save_ts = perf_counter()
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             outliers_path = os.path.join(path, "outliers.csv")
-            self.write_df_to_hdfs_csv(outliers, outliers_path)
+            self._write_df_to_hdfs_csv(outliers, outliers_path)
             print(
                 f"Saving outliers took {perf_counter() - start_save_ts} sec."
             )
@@ -592,14 +598,14 @@ class DetectDriftTask(BaseTask):
             start_load_ts = perf_counter()
             reference_path = collect_reference_task["reference_path"]
             current_path = collect_current_task["current_path"]
-            reference_df = self.read_parquet_from_hdfs(reference_path)
+            reference_df = self._read_parquet_from_hdfs(reference_path)
             # if the reference data is empty, skip the drift detection
             if reference_df.empty:
                 return {
                     "drift_report_json_path": None,
                     "drift_report_html_path": None,
                 }
-            current_df = self.read_parquet_from_hdfs(current_path)
+            current_df = self._read_parquet_from_hdfs(current_path)
             print(
                 f"Loading reference and current data took {perf_counter() - start_load_ts} sec."
             )
@@ -618,8 +624,8 @@ class DetectDriftTask(BaseTask):
             path = os.path.join(STORAGE_PATH, self.dag_run_id)
             drift_report_json_path = os.path.join(path, "drift_report.json")
             drift_report_html_path = os.path.join(path, "drift_report.html")
-            self.write_str_to_hdfs(report_json_str, drift_report_json_path)
-            self.write_str_to_hdfs(report_html_str, drift_report_html_path)
+            self._write_str_to_hdfs(report_json_str, drift_report_json_path)
+            self._write_str_to_hdfs(report_html_str, drift_report_html_path)
             print(
                 f"Saving drift report took {perf_counter() - start_save_ts} sec."
             )
@@ -707,10 +713,10 @@ class CleanupTask(BaseTask):
             start_cleanup_ts = perf_counter()
             if collect_reference_task["status"] == TaskStatus.SUCCESS.value:
                 reference_path = collect_reference_task["reference_path"]
-                self.rm_hdfs(reference_path)
+                self._rm_hdfs(reference_path)
             if collect_current_task["status"] == TaskStatus.SUCCESS.value:
                 current_path = collect_current_task["current_path"]
-                self.rm_hdfs(current_path)
+                self._rm_hdfs(current_path)
             print(
                 f"Cleaning up reference and current data took {perf_counter() - start_cleanup_ts} sec."
             )
