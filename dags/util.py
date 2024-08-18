@@ -111,7 +111,6 @@ def _GET_MODEL(y):
 def _LOAD_MODEL(model_name, model_version):
 
     url = f'{ML_SERVICE_ENDPOINT}/load_model'
-    print(url)
     data = {"model_name": model_name, "model_version": model_version}
     response = requests.post(url, json=data)
     result = response.json()["result"]
@@ -233,20 +232,21 @@ def _LOG_PARAMETER(model_id: str, parameter) -> Dict[str, Any]:
 def _GET_MOTION_AND_QA(date:str, lot_id:str )-> pd.DataFrame:
 
     client = (
-            SparkSession.Builder()
-            .appName("airflow")
-            .master("local[1]")
-            .config(
-                "spark.hive.metastore.uris", "thrift://hadoop-platform:9083"
-            )
-            .config(
-                "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
-                2,
-            )
-            .config("spark.sql.execution.arrow.pyspark.enabled", "true")
-            .enableHiveSupport()
-            .getOrCreate()
+        SparkSession.Builder()
+        .appName("data_analyzer")
+        .master("local[1]")
+        .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
+            2,
         )
+        .config(
+            "spark.sql.execution.arrow.pyspark.enabled",
+            "true" if True else "false",
+        )
+        .enableHiveSupport()
+        .getOrCreate()
+    )
     sql_str = \
     f"SELECT * FROM ( SELECT * FROM ( SELECT mapping_uid, measure_item, value FROM qa WHERE (date = '{date}' AND lot_id = '{lot_id}') ) t PIVOT ( FIRST(value) FOR measure_item IN ('ball_shear', 'neck_pull', 'wire_pull', 'stitch_pull', 'outer_ball_size_x', 'outer_ball_size_y', 'inner_ball_size_x', 'inner_ball_size_y', 'outer_ball_shape', 'inner_ball_shape', 'ball_placement_x', 'ball_placement_y', 'al_squeeze_out_x', 'al_squeeze_out_y', 'ball_thickness', 'loop_height', 'anomaly_bb', 'anomaly_bs') ) ) t1 INNER JOIN ( SELECT * FROM motion_bb_mfdotwbdot000001 WHERE (date = '{date}' AND lot_id = '{lot_id}') ) t2 USING(mapping_uid)"
 

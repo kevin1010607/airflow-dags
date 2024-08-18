@@ -53,7 +53,6 @@ def model_update():
 
         raw_data = _GET_MOTION_AND_QA(date, lot_id)
         # raw_data = generate_mock_data()
-        # test
     
         return raw_data
     
