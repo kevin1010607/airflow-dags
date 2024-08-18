@@ -19,7 +19,7 @@ from pyspark.sql import functions as F
 DEBUG = True
 ALERT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
 RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
-ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30001'
+ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
 
 
 def generate_mock_data(n_samples=200):
@@ -111,6 +111,7 @@ def _GET_MODEL(y):
 def _LOAD_MODEL(model_name, model_version):
 
     url = f'{ML_SERVICE_ENDPOINT}/load_model'
+    print(url)
     data = {"model_name": model_name, "model_version": model_version}
     response = requests.post(url, json=data)
     result = response.json()["result"]
