@@ -13,7 +13,7 @@ from util import (
     _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT, generate_mock_data, 
 )
 
-
+# test_version:1
 @dag(
     schedule=None, 
     start_date=datetime(2024, 1, 1), 
