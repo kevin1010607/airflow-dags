@@ -9,3 +9,4 @@ hdfs==2.7.3
 pyarrow==15.0.2
 evidently==0.4.36
 pyod==2.0.1
+nltk==3.8.1
