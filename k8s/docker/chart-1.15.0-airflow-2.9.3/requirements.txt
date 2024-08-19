@@ -2,7 +2,7 @@ numpy==1.26.4
 pandas==2.2.2
 scikit-learn==1.5.1
 psycopg2-binary
-mlflow
+mlflow>=2.15.1
 catboost
 pyspark==3.5.1
 hdfs==2.7.3

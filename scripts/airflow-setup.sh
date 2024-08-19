@@ -35,7 +35,7 @@ helm search repo airflow --versions
 # Apply customized setting on airflow
 export USERNAME=ryan910707
 export CHART_VERSION=1.15.0
-export AIRFLOW_VERSION=latest
+export AIRFLOW_VERSION=2.9.3
 rm -f values.yaml
 helm show values apache-airflow/airflow --version ${CHART_VERSION} > values.yaml
 yq eval -i '
