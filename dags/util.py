@@ -290,13 +290,14 @@ def _GET_QA(date:str, lot_id:str )-> pd.DataFrame:
     return pdf
 def _ONEHOT_ENCODING(df:pd.DataFrame) -> pd.DataFrame:
 
-    non_numeric_columns = df.select_dtypes(exclude=['float64', 'int64']).columns
-    if(len(non_numeric_columns) == 0):
+    string_columns = [col for col in df.columns if df[col].apply(lambda x: isinstance(x, str)).all()]
+
+    if(len(string_columns) == 0):
         return df
     else :
-        one_hot_encoded = pd.get_dummies(df[non_numeric_columns])
+        one_hot_encoded = pd.get_dummies(df[string_columns])
         df_encoded = pd.concat([df, one_hot_encoded], axis=1)
-        df_encoded = df_encoded.drop(non_numeric_columns, axis=1)
+        df_encoded = df_encoded.drop(string_columns, axis=1)
         return df_encoded
 
 def _EXTRACT_DATETIME(df: pd.DataFrame) -> pd.DataFrame:
