@@ -17,9 +17,9 @@ from pyspark.sql import functions as F
 
 
 DEBUG = True
-ALERT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
-RESULT_SERVER_ENDPOINT = 'http://10.121.252.189:30888'
-ML_SERVICE_ENDPOINT = 'http://10.121.252.189:30002'
+NODE_IP = os.environ['NODE_IP']
+ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:30888'
+MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:30002'
 
 
 def generate_mock_data(n_samples=200):
@@ -110,7 +110,7 @@ def _GET_MODEL(y):
 
 def _LOAD_MODEL(model_name, model_version):
 
-    url = f'{ML_SERVICE_ENDPOINT}/load_model'
+    url = f'{MODEL_SERVICE_ENDPOINT}/load_model'
     data = {"model_name": model_name, "model_version": model_version}
     response = requests.post(url, json=data)
     result = response.json()["result"]
@@ -170,7 +170,7 @@ def _LOG_METRIC(model_id: str, metrics) -> Dict[str, Any]:
     Raises:
         Exception: If logging the metric fails.
     """
-    url = f'{ML_SERVICE_ENDPOINT}/log_metrics'
+    url = f'{MODEL_SERVICE_ENDPOINT}/log_metrics'
     payload = {
         'model_name': model_id, 
         'metrics': metrics,
@@ -207,7 +207,7 @@ def _LOG_PARAMETER(model_id: str, parameter) -> Dict[str, Any]:
         Exception: If logging the parameter fails.
     """
     parameter['model_status'] = 'normal'
-    url = f'{ML_SERVICE_ENDPOINT}/log_parameters'
+    url = f'{MODEL_SERVICE_ENDPOINT}/log_parameters'
     payload = {
         'model_name': model_id, 
         'parameters': parameter,
@@ -357,7 +357,7 @@ def _LOG_MODEL(model_name, model):
     if os.path.exists(model_path):
         shutil.rmtree(model_path)
 
-    url = f'{ML_SERVICE_ENDPOINT}/log_model'
+    url = f'{MODEL_SERVICE_ENDPOINT}/log_model'
 
     try:
         response = requests.post(url, json=data, timeout=10)
@@ -374,8 +374,7 @@ def _LOG_MODEL(model_name, model):
         return {'state': False, 'message': str(err)}
 
 def _SEND_RESULT(model_id, params, metrics):
-    return None
-    url = f'{RESULT_SERVER_ENDPOINT}/api/v1/dags/response/put'
+    url = f'{ALERT_SERVER_ENDPOINT}/api/v1/dags/response/put'
     run_id = params.run_id
     execution_date = params.execution_date
     dag_id = params.dag_id
@@ -409,7 +408,7 @@ def _SEND_PREDICTION(model_id, params, prediction):
     execution_date = params.execution_date
     dag_id = params.dag_id
 
-    url = f'{RESULT_SERVER_ENDPOINT}/api/v1/dags/response/put'
+    url = f'{ALERT_SERVER_ENDPOINT}/api/v1/dags/response/put'
     payload = {
         'execution_date': execution_date.isoformat(),
         'dag_id': dag_id,
