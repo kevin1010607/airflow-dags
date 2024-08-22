@@ -1,45 +1,41 @@
-from airflow import DAG
 from datetime import datetime, timedelta
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.operators.empty import EmptyOperator
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2024, 7, 25),
-    'retries': 1,
-}
+from airflow.decorators import dag, task
 
-dag = DAG(
-    'test-k8s',
-    default_args=default_args,
-    schedule_interval=None,
+@dag(
+    schedule=None, 
+    start_date=datetime(2024, 1, 1), 
+    tags=[], 
+    params={}, 
 )
+def test_k8s():
 
-start = EmptyOperator(task_id='run_this_first', dag=dag)
+    @task()
+    def extract():
+        # Simulating data extraction
+        return {"order_id": 1234, "amount": 100.00}
 
-passing = KubernetesPodOperator(
-    namespace='default',
-    image="python:3.8",
-    cmds=["python", "-c"],
-    arguments=["print('hello world')"],
-    labels={"foo": "bar"},
-    name="passing-test",
-    task_id="passing-task",
-    get_logs=True,
-    dag=dag,
-)
+    @task.kubernetes(
+        image="python:3.12", 
+        namespace="airflow", 
+        do_xcom_push=True, 
+    )
+    def transform(order_data: dict):
+        import time
+        # Simulating data transformation
+        time.sleep(20)
+        order_data['amount'] = order_data['amount'] * 1.1  # Add 10% tax
+        return order_data
 
-failing = KubernetesPodOperator(
-    namespace='default',
-    image="ubuntu:16.04",
-    cmds=["echo"],
-    arguments=["hello world"],
-    labels={"foo": "bar"},
-    name="fail",
-    task_id="failing-task",
-    get_logs=True,
-    dag=dag,
-)
+    @task()
+    def load(order_data: dict):
+        # Simulating data loading
+        print(f"Saving order {order_data['order_id']} with amount {order_data['amount']}")
 
-start >> [passing, failing]
+    # Define the task dependencies
+    order_data = extract()
+    transformed_data = transform(order_data)
+    load(transformed_data)
+
+# Instantiate the DAG
+test_k8s_dag = test_k8s()
