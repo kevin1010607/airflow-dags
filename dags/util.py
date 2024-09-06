@@ -15,8 +15,7 @@ from pyspark.sql import DataFrame,SparkSession
 from pyspark.sql import functions as F
 
 DEBUG = True
-# NODE_IP = os.environ['NODE_IP']
-NODE_IP = "10.121.252.189"
+NODE_IP = os.environ['NODE_IP']
 ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:30888'
 MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:30002'
 
