@@ -17,7 +17,8 @@ from pyspark.sql import functions as F
 
 
 DEBUG = True
-NODE_IP = os.environ['NODE_IP']
+# NODE_IP = os.environ['NODE_IP']
+NODE_IP = "10.121.252.189"
 ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:30888'
 MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:30002'
 
@@ -256,10 +257,16 @@ def _GET_MOTION_AND_QA(date:str, lot_id:str )-> pd.DataFrame:
 def _GET_MOTION(date:str, lot_id:str )-> pd.DataFrame:
 
     client = (
-        SparkSession.builder.appName("data_analyzer")
+        SparkSession.Builder()
+        .appName("data_analyzer")
+        .master("local[1]")
         .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
+            2,
+        )
+        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
         .enableHiveSupport()
-        .master("spark://hadoop-platform:7077")
         .getOrCreate()
     )
     motion_sql_str = \
@@ -274,10 +281,16 @@ def _GET_MOTION(date:str, lot_id:str )-> pd.DataFrame:
 def _GET_QA(date:str, lot_id:str )-> pd.DataFrame:
 
     client = (
-        SparkSession.builder.appName("data_analyzer")
+        SparkSession.Builder()
+        .appName("data_analyzer")
+        .master("local[1]")
         .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version",
+            2,
+        )
+        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
         .enableHiveSupport()
-        .master("spark://hadoop-platform:7077")
         .getOrCreate()
     )
     qa_sql_str = \
