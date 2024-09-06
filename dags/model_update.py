@@ -9,21 +9,22 @@ from airflow.decorators import dag, task
 from airflow.operators.python import get_current_context
 
 from util import (
-    _DC, _EXTRACT_DATETIME, _FE, _GET_MOTION_AND_QA, _LOAD_MODEL, 
-    _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT, generate_mock_data, 
+    _DC, _EXTRACT_DATETIME, _FE, _GET_MOTION_AND_QA, _LOAD_MODEL,
+    _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT,
+    generate_mock_data,
 )
 
 
 @dag(
-    schedule=None, 
-    start_date=datetime(2024, 1, 1), 
-    tags=[], 
+    schedule=None,
+    start_date=datetime(2024, 1, 1),
+    tags=[],
     params={
-        'model_id': 'multi_y_regressor', 
+        'model_id': 'multi_y_regressor',
         'model_version': 'latest',
-        'date': "2024-01-01", 
-        'lot_id': "ATWLOT-010124-0852-553-001", 
-        'features_name': ['equipment_id','lf_id','proc_datetime',  'heat_pre'], 
+        'date': "2024-01-01",
+        'lot_id': "ATWLOT-010124-0852-553-001",
+        'features_name': ['equipment_id', 'lf_id', 'proc_datetime', 'heat_pre'],
         'targets_name': [
             "al_squeeze_out_x",
             "al_squeeze_out_y",
@@ -34,7 +35,7 @@ from util import (
             "outer_ball_shape",
             "inner_ball_shape",
         ]
-    }, 
+    },
 )
 def model_update():
     """DAG for updating, evaluating, and logging model metrics."""
@@ -42,9 +43,9 @@ def model_update():
     @task
     def data_collect():
         """Collect data for model training.
-        
+
         Returns:
-            pdf: raw_data for trainning
+            pd.DataFrame: Raw data for training.
         """
         try:
             context = get_current_context()
@@ -58,17 +59,16 @@ def model_update():
             return raw_data
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in data_collect: {str(e)}")
             raise e
-        
-    
+
     @task(multiple_outputs=True)
     def data_preprocess(raw_data):
         """Preprocess the collected data.
-        
+
         Args:
             raw_data (pd.DataFrame): The raw data.
-        
+
         Returns:
             dict: A dictionary containing train/test features and targets.
         """
@@ -77,35 +77,35 @@ def model_update():
             params = context['params']
             features_name = params['features_name']
             targets_name = params['targets_name']
-            data = raw_data[features_name+targets_name]
+            data = raw_data[features_name + targets_name]
 
-            print(f"Preprocessing data")
+            print("Preprocessing data")
             data = _DC(data)
             feature, target = _FE(data, features_name, targets_name)
 
-            print(f"Extracting datetime and one-hot encoding")
-            feature  = _EXTRACT_DATETIME(feature)
+            print("Extracting datetime and one-hot encoding")
+            feature = _EXTRACT_DATETIME(feature)
             feature = _ONEHOT_ENCODING(feature)
-            
-            print(f"Splitting data into train and test datasets")
-            train_feature, test_feature, train_target, test_target = train_test_split(feature, target, test_size=0.2, random_state=42)
-            
+
+            print("Splitting data into train and test datasets")
+            train_feature, test_feature, train_target, test_target = train_test_split(
+                feature, target, test_size=0.2, random_state=42)
+
             return {
-                'train_feature': train_feature, 
-                'test_feature': test_feature, 
-                'train_target': train_target, 
-                'test_target': test_target, 
+                'train_feature': train_feature,
+                'test_feature': test_feature,
+                'train_target': train_target,
+                'test_target': test_target,
             }
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in data_preprocess: {str(e)}")
             raise e
-
 
     @task
     def load_model():
         """Load the model from the server.
-        
+
         Returns:
             Any: The loaded model.
         """
@@ -114,26 +114,25 @@ def model_update():
             params = context['params']
             model_id = params['model_id']
             model_version = params['model_version']
-            
+
             print(f"Loading model: {model_id}, version: {model_version}")
             model = _LOAD_MODEL(model_id, model_version)
 
             return model
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in load_model: {str(e)}")
             raise e
 
-    
     @task
     def update(model, train_feature, train_target):
         """Update the model with the training data.
-        
+
         Args:
             model (Any): The loaded model.
             train_feature (pd.DataFrame): The training features.
             train_target (pd.DataFrame): The training targets.
-        
+
         Returns:
             Any: The updated model.
         """
@@ -141,23 +140,22 @@ def model_update():
             feature_tensor = train_feature.values
             target_tensor = train_target.values
 
-            print(f"Updating model")
+            print("Updating model")
             model.fit(feature_tensor, target_tensor)
 
             return model
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in update: {str(e)}")
             raise e
-
 
     @task
     def save(model):
         """Save the updated model to the server.
-        
+
         Args:
             model (Any): The updated model.
-        
+
         Returns:
             dict: The response from the server.
         """
@@ -165,25 +163,24 @@ def model_update():
             context = get_current_context()
             params = context['params']
             model_id = params['model_id']
-            
+
             print(f"Saving model: {model_id}")
             response = _LOG_MODEL(model_id, model)
 
             return response
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in save: {str(e)}")
             raise e
-
 
     @task
     def predict(model, test_feature):
         """Make predictions using the updated model.
-        
+
         Args:
             model (Any): The updated model.
             test_feature (pd.DataFrame): The test features.
-        
+
         Returns:
             pd.DataFrame: The predictions.
         """
@@ -193,30 +190,29 @@ def model_update():
             targets_name = params['targets_name']
             feature_tensor = test_feature.values
 
-            print(f"Predicting")
+            print("Predicting")
             prediction_tensor = model.predict(feature_tensor)
             prediction = pd.DataFrame(prediction_tensor, columns=targets_name)
-            
+
             return prediction
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in predict: {str(e)}")
             raise e
-
 
     @task
     def evaluate(target, prediction):
         """Evaluate the model predictions.
-        
+
         Args:
             target (pd.DataFrame): The true target values.
             prediction (pd.DataFrame): The predicted values.
-        
+
         Returns:
             dict: A dictionary containing evaluation metrics.
         """
         try:
-            print(f"Evaluating metrics: r2_score, mse_score, pos_max_err, neg_max_err")
+            print("Evaluating metrics: r2_score, mse_score, pos_max_err, neg_max_err")
             _r2_score = r2_score(target, prediction)
             _mse_score = mean_squared_error(target, prediction)
             errors = prediction.values - target.values
@@ -224,24 +220,23 @@ def model_update():
             _neg_max_err = errors.min()
 
             return {
-                'r2_score': _r2_score, 
-                'mse_score': _mse_score, 
-                'pos_max_err': _pos_max_err, 
-                'neg_max_err': _neg_max_err, 
+                'r2_score': _r2_score,
+                'mse_score': _mse_score,
+                'pos_max_err': _pos_max_err,
+                'neg_max_err': _neg_max_err,
             }
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in evaluate: {str(e)}")
             raise e
-    
 
     @task
     def collect_metric(metrics):
         """Log evaluation metrics to the server.
-        
+
         Args:
             metrics (dict): The evaluation metrics.
-        
+
         Returns:
             dict: The responses from the server.
         """
@@ -249,22 +244,23 @@ def model_update():
             context = get_current_context()
             params = context['params']
             model_id = params['model_id']
-            
-            print(f"Saving metrics and parameters")
+
+            print("Saving metrics and parameters")
             responses = {
-                'metric': _LOG_METRIC(model_id, metrics), 
+                'metric': _LOG_METRIC(model_id, metrics),
                 'parameter': _LOG_PARAMETER(model_id, {})
             }
 
             return responses
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in collect_metric: {str(e)}")
             raise e
-    
+
     @task
     def send_result(metrics):
         """Send the evaluation metrics to the result server.
+
         Args:
             metrics (dict): The evaluation metrics.
 
@@ -277,15 +273,15 @@ def model_update():
             model_id = params['model_id']
             dag_params = context['dag_run']
 
-            print(f"Sending result to result server")
+            print("Sending result to result server")
             response = _SEND_RESULT(model_id, dag_params, metrics)
 
             return response
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error in send_result: {str(e)}")
             raise e
-    
+
     # Task: data collect
     raw_data = data_collect()
     # Task: data preprocess

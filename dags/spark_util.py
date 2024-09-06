@@ -31,23 +31,20 @@ _scope_features = [
 ]
 _gauge_features = ["ball_shear", "wire_pull", "neck_pull", "stitch_pull"]
 Y_LABELS = _scope_features + _gauge_features
-TEXT_FEATURES = [
-    "recipe_name",
-    "lf_id",
-    "lot_id",
-]
+TEXT_FEATURES = ["recipe_name", "lf_id", "lot_id"]
 DATETIME_FEATURES = ["proc_datetime", "date"]
 
 
-def getSparkClient(appName: str = "spark-client", simulate: bool = False):
+def getSparkClient(app_name: str = "spark-client", simulate: bool = False):
+    """Get a Spark session with the specified app name."""
     if simulate:
         return (
-            SparkSession.builder.appName(appName)
+            SparkSession.builder.appName(app_name)
             .master("local[*]")
             .getOrCreate()
         )
     spark = (
-        SparkSession.builder.appName(appName)
+        SparkSession.builder.appName(app_name)
         .config("spark.hive.metastore.uris", "thrift://hadoop-platform:9083")
         .enableHiveSupport()
         .master("spark://hadoop-platform:7077")
@@ -57,7 +54,7 @@ def getSparkClient(appName: str = "spark-client", simulate: bool = False):
 
 
 def getAll(client: SparkSession):
-    """getAll gets all data from the sql list and returns a dataframe"""
+    """Get all data from the SQL list and return a dataframe."""
     df = client.sql(SQL_LIST[0])
     for i in range(1, len(SQL_LIST)):
         df = df.union(client.sql(SQL_LIST[i]))
@@ -65,7 +62,7 @@ def getAll(client: SparkSession):
 
 
 def getSplittedData(client: SparkSession) -> Tuple[DataFrame, DataFrame]:
-    """getSplittedData gets the splitted data from the sql list and returns a tuple of dataframes"""
+    """Get the splitted data from the SQL list and return a tuple of dataframes."""
     train = client.sql(SQL_LIST[0])
     train = train.union(client.sql(SQL_LIST[1]))
     test = client.sql(SQL_LIST[2])
@@ -73,7 +70,7 @@ def getSplittedData(client: SparkSession) -> Tuple[DataFrame, DataFrame]:
 
 
 def getLabels(df: DataFrame) -> Tuple[List[str], List[str]]:
-    """getXLabels gets the x labels from the sql list and returns a dataframe"""
+    """Get the x and y labels from the dataframe."""
     cols = df.columns
     x_labels = [col for col in cols if col not in [ID] + Y_LABELS]
     y_labels = [col for col in cols if col in Y_LABELS]
@@ -81,8 +78,8 @@ def getLabels(df: DataFrame) -> Tuple[List[str], List[str]]:
 
 
 def saveAll(client: SparkSession, path: str = "data.csv"):
-    """saveAll saves all data from the sql list to csv"""
-    spark_df = getAll(client)
+    """Save all data from the SQL list to a CSV file."""
+    spark_df = get_all(client)
     df = pd.DataFrame(spark_df.collect(), columns=spark_df.columns)
     df.to_csv(path, index=False)
 
@@ -92,8 +89,8 @@ def saveSplittedData(
     train_path: str = "train_data.csv",
     test_path: str = "test_data.csv",
 ):
-    """saveSplittedData saves the splitted data from the sql list to csv"""
-    spark_train, spark_test = getSplittedData(client)
+    """Save the splitted data from the SQL list to CSV files."""
+    spark_train, spark_test = get_splitted_data(client)
     train = pd.DataFrame(spark_train.collect(), columns=spark_train.columns)
     test = pd.DataFrame(spark_test.collect(), columns=spark_test.columns)
     train.to_csv(train_path, index=False)
@@ -101,7 +98,7 @@ def saveSplittedData(
 
 
 def loadAll(client: SparkSession, path: str = "data.csv"):
-    """loadAll loads all data from the csv file"""
+    """Load all data from a CSV file."""
     df = pd.read_csv(path)
 
     df[DATETIME] = pd.to_datetime(df[DATETIME])
@@ -116,7 +113,7 @@ def loadSplittedData(
     train_path: str = "train_data.csv",
     test_path: str = "test_data.csv",
 ):
-    """loadSplittedData loads the splitted data from the csv file"""
+    """Load the splitted data from CSV files."""
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
 
