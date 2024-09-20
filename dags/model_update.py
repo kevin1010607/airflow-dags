@@ -229,6 +229,32 @@ def model_update():
         except Exception as e:
             print(f"Error in evaluate: {str(e)}")
             raise e
+    
+    @task.branch(task_id="branching")
+    def check_metric(metrics):
+        """Check if the evaluation metrics are acceptable.
+        Args:
+            metrics (dict): The evaluation metrics.
+        """
+        try:
+            context = get_current_context()
+            params = context['params']
+            model_id = params['model_id']
+
+            print("Checking evaluation metrics")
+            r2_score = metrics['r2_score']
+            mse_score = metrics['mse_score']
+            pos_max_err = metrics['pos_max_err']
+            neg_max_err = metrics['neg_max_err']
+
+            if mse_score > 50:
+                return ["save", "send_result", "collect_metric"]
+            else:
+                return "failure"
+
+        except Exception as e:
+            print(f"Error in check_metric: {str(e)}")
+            raise e
 
     @task
     def collect_metric(metrics):
@@ -281,29 +307,32 @@ def model_update():
         except Exception as e:
             print(f"Error in send_result: {str(e)}")
             raise e
+    
+    @task
+    def failure():
+        """Handle the failure case when metrics are not acceptable."""
+        print("Model did not meet the performance criteria.")
+        return
+        
 
-    # Task: data collect
+    # Task execution and dependencies
     raw_data = data_collect()
-    # Task: data preprocess
     data_preprocess_result = data_preprocess(raw_data)
-    train_feature = data_preprocess_result['train_feature']
-    test_feature = data_preprocess_result['test_feature']
-    train_target = data_preprocess_result['train_target']
-    test_target = data_preprocess_result['test_target']
-    # Task: load model
     model = load_model()
-    # Task: update
-    model = update(model, train_feature, train_target)
-    # Task: save
-    save_response = save(model)
-    # Task: predict
-    prediction = predict(model, test_feature)
-    # Task: evaluate
-    metrics = evaluate(test_target, prediction)
-    # Task: collect metric
+    updated_model = update(model, data_preprocess_result['train_feature'], data_preprocess_result['train_target'])
+    prediction = predict(updated_model, data_preprocess_result['test_feature'])
+    metrics = evaluate(data_preprocess_result['test_target'], prediction)
+    branch_decision = check_metric(metrics)
+
+    # Define possible branches
+    save_response = save(updated_model)
     collect_metric_response = collect_metric(metrics)
-    # Task: send result
     send_result_response = send_result(metrics)
+    failure_task = failure()
+
+    # Set up branching dependencies
+    branch_decision >> [save_response, collect_metric_response, send_result_response]
+    branch_decision >> failure_task
 
 
 # Define the DAG

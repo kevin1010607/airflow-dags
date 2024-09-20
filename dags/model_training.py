@@ -273,6 +273,38 @@ def model_training():
         except Exception as e:
             print(f"Error in send_result: {str(e)}")
             raise e
+    
+    @task.branch(task_id="branching")
+    def check_metric(metrics):
+        """Check if the evaluation metrics are acceptable.
+        Args:
+            metrics (dict): The evaluation metrics.
+        """
+        try:
+            context = get_current_context()
+            params = context['params']
+            model_id = params['model_id']
+
+            print("Checking evaluation metrics")
+            r2_score = metrics['r2_score']
+            mse_score = metrics['mse_score']
+            pos_max_err = metrics['pos_max_err']
+            neg_max_err = metrics['neg_max_err']
+
+            if mse_score > 50:
+                return ["save", "send_result", "collect_metric"]
+            else:
+                return "failure"
+  
+        except Exception as e:
+            print(f"Error in check_metric: {str(e)}")
+            raise e
+    
+    @task
+    def failure():
+        """Handle the failure case when metrics are not acceptable."""
+        print("Model did not meet the performance criteria.")
+        return
 
     # Task: data collect
     raw_data = data_collect()
@@ -286,16 +318,21 @@ def model_training():
     train_result = train(train_feature, train_target)
     model = train_result['model']
     model_parameter = train_result['model_parameter']
-    # Task: save
-    save_response = save(model)
+
     # Task: predict
     prediction = predict(model, test_feature)
     # Task: evaluate
     metrics = evaluate(test_target, prediction)
-    # Task: collect metric
+    branch_decision = check_metric(metrics)
+
+    # Define possible branches
+    save_response = save(model)
     collect_metric_response = collect_metric(metrics, model_parameter)
-    # Task: send result
     send_result_response = send_result(metrics)
+    failure_task = failure()
+
+    branch_decision >> [save_response, collect_metric_response, send_result_response]
+    branch_decision >> failure_task
 
 
 # Define the DAG
