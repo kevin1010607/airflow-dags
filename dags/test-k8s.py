@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
 
+def error_callback(context):
+    print(f"An error occurred: {context=}")
+
 @dag(
     schedule=None, 
     start_date=datetime(2024, 1, 1), 
@@ -10,9 +13,10 @@ from airflow.decorators import dag, task
 )
 def test_k8s():
 
-    @task()
+    @task(on_failure_callback=error_callback)
     def extract():
         # Simulating data extraction
+        raise Exception("Failed to extract data")
         return {"order_id": 1234, "amount": 100.00}
 
     @task.kubernetes(
