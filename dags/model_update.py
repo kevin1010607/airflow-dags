@@ -11,7 +11,7 @@ from airflow.operators.python import get_current_context
 from util import (
     _DC, _EXTRACT_DATETIME, _FE, _GET_MOTION_AND_QA, _LOAD_MODEL,
     _LOG_MODEL, _LOG_METRIC, _LOG_PARAMETER, _ONEHOT_ENCODING, _SEND_RESULT,
-    generate_mock_data,
+    generate_mock_data, success_callback, failure_callback,
 )
 
 
@@ -40,7 +40,7 @@ from util import (
 def model_update():
     """DAG for updating, evaluating, and logging model metrics."""
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def data_collect():
         """Collect data for model training.
 
@@ -62,7 +62,7 @@ def model_update():
             print(f"Error in data_collect: {str(e)}")
             raise e
 
-    @task(multiple_outputs=True)
+    @task(multiple_outputs=True, on_success_callback=success_callback, on_failure_callback=failure_callback)
     def data_preprocess(raw_data):
         """Preprocess the collected data.
 
@@ -102,7 +102,7 @@ def model_update():
             print(f"Error in data_preprocess: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def load_model():
         """Load the model from the server.
 
@@ -124,7 +124,7 @@ def model_update():
             print(f"Error in load_model: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def update(model, train_feature, train_target):
         """Update the model with the training data.
 
@@ -149,7 +149,7 @@ def model_update():
             print(f"Error in update: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def save(model):
         """Save the updated model to the server.
 
@@ -173,7 +173,7 @@ def model_update():
             print(f"Error in save: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def predict(model, test_feature):
         """Make predictions using the updated model.
 
@@ -200,7 +200,7 @@ def model_update():
             print(f"Error in predict: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def evaluate(target, prediction):
         """Evaluate the model predictions.
 
@@ -230,7 +230,7 @@ def model_update():
             print(f"Error in evaluate: {str(e)}")
             raise e
     
-    @task.branch(task_id="branching")
+    @task.branch(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def check_metric(metrics):
         """Check if the evaluation metrics are acceptable.
         Args:
@@ -256,7 +256,7 @@ def model_update():
             print(f"Error in check_metric: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def collect_metric(metrics):
         """Log evaluation metrics to the server.
 
@@ -283,7 +283,7 @@ def model_update():
             print(f"Error in collect_metric: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def send_result(metrics):
         """Send the evaluation metrics to the result server.
 
@@ -308,7 +308,7 @@ def model_update():
             print(f"Error in send_result: {str(e)}")
             raise e
     
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def failure():
         """Handle the failure case when metrics are not acceptable."""
         print("Model did not meet the performance criteria.")

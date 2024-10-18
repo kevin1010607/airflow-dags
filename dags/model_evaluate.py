@@ -7,7 +7,10 @@ from sklearn.metrics import r2_score, mean_squared_error
 from airflow.decorators import dag, task
 from airflow.operators.python import get_current_context
 
-from util import _FE, _GET_PREDICTION, _GET_QA, _LOG_METRIC, _LOG_PARAMETER, _SEND_RESULT
+from util import (
+    _FE, _GET_PREDICTION, _GET_QA, _LOG_METRIC, _LOG_PARAMETER, _SEND_RESULT,
+    success_callback, failure_callback,
+)
 
 
 @dag(
@@ -34,7 +37,7 @@ from util import _FE, _GET_PREDICTION, _GET_QA, _LOG_METRIC, _LOG_PARAMETER, _SE
 def model_evaluate():
     """DAG for evaluating model predictions."""
 
-    @task(multiple_outputs=True)
+    @task(multiple_outputs=True, on_success_callback=success_callback, on_failure_callback=failure_callback)
     def data_collect():
         """Collect data for evaluation.
 
@@ -72,7 +75,7 @@ def model_evaluate():
             print(f"Error in data_collect: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def evaluate(ground_truth, prediction):
         """Evaluate the model predictions.
 
@@ -105,7 +108,7 @@ def model_evaluate():
             print(f"Error in evaluate: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def collect_metric(metrics):
         """Log evaluation metrics to the server.
 
@@ -129,7 +132,7 @@ def model_evaluate():
             print(f"Error in collect_metric: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def send_result(metrics):
         """Send the evaluation metrics to the result server.
 

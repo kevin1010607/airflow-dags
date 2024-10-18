@@ -8,7 +8,8 @@ from airflow.operators.python import get_current_context
 
 from util import (
     _DC, _EXTRACT_DATETIME, _FE, _GET_MOTION, _LOAD_MODEL,
-    _ONEHOT_ENCODING, _SAVE_PREDICTION, _SEND_PREDICTION, _SEND_RESULT
+    _ONEHOT_ENCODING, _SAVE_PREDICTION, _SEND_PREDICTION, _SEND_RESULT,
+    success_callback, failure_callback,
 )
 
 
@@ -37,7 +38,7 @@ from util import (
 def model_predict():
     """DAG for model prediction."""
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def data_collect():
         """Collect data for prediction.
 
@@ -59,7 +60,7 @@ def model_predict():
             print(f"Error in data_collect: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def data_preprocess(raw_data):
         """Preprocess the collected data.
 
@@ -94,7 +95,7 @@ def model_predict():
             print(f"Error in data_preprocess: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def load_model():
         """Load the model from the server.
 
@@ -116,7 +117,7 @@ def model_predict():
             print(f"Error in load_model: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def predict(model, test_feature):
         """Make predictions using the loaded model.
 
@@ -147,7 +148,7 @@ def model_predict():
             print(f"Error in predict: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def save(prediction):
         """Save the predictions.
 
@@ -170,7 +171,7 @@ def model_predict():
             print(f"Error in save: {str(e)}")
             raise e
 
-    @task
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def send_prediction(prediction):
         """Send the predictions to the result server.
 

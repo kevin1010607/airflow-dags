@@ -21,6 +21,8 @@ from pyod.models.ecod import ECOD
 from pyspark.sql import SparkSession
 from sklearn.preprocessing import StandardScaler
 
+from util import success_callback, failure_callback
+
 # =========================================================================================
 # ====================================== analysis =========================================
 # =========================================================================================
@@ -743,25 +745,25 @@ params = {
 )
 def data_analyzer():
     # Tasks
-    @task()
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def collect_reference():
         context = get_current_context()
         collect_reference_task = CollectReferenceTask(context)
         return collect_reference_task.run()
 
-    @task()
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def collect_current():
         context = get_current_context()
         collect_current_task = CollectCurrentTask(context)
         return collect_current_task.run()
 
-    @task()
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def detect_outliers(collect_current_task):
         context = get_current_context()
         detect_outliers_task = DetectOutliersTask(context)
         return detect_outliers_task.run(collect_current_task)
 
-    @task()
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def detect_drift(collect_reference_task, collect_current_task):
         context = get_current_context()
         detect_drift_task = DetectDriftTask(context)
@@ -769,7 +771,7 @@ def data_analyzer():
             collect_reference_task, collect_current_task
         )
 
-    @task()
+    @task(on_success_callback=success_callback, on_failure_callback=failure_callback)
     def cleanup(
         collect_reference_task,
         collect_current_task,

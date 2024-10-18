@@ -20,6 +20,16 @@ ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:30888'
 MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:30002'
 
 
+def success_callback(context):
+    """Callback function for successful task completion."""
+    print(f"Task {context['task_instance_key_str']} completed successfully.")
+
+
+def failure_callback(context):
+    """Callback function for failed task completion."""
+    print(f"Task {context['task_instance_key_str']} failed.")
+
+
 def generate_mock_data(n_samples=200) -> pd.DataFrame:
     """Generate mock data for equipment and process variables.
 
