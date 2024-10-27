@@ -14,10 +14,12 @@ from hdfs import InsecureClient
 from pyspark.sql import DataFrame,SparkSession
 from pyspark.sql import functions as F
 
-DEBUG = True
+
 NODE_IP = os.environ['NODE_IP']
-ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:30888'
-MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:30002'
+MODEL_SERVICE_PORT = os.environ['MODEL_SERVICE_PORT']
+ALERT_SERVICE_NODE_PORT = os.environ['ALERT_SERVICE_NODE_PORT']
+MODEL_SERVICE_ENDPOINT = f'http://{NODE_IP}:{MODEL_SERVICE_PORT}'
+ALERT_SERVER_ENDPOINT = f'http://{NODE_IP}:{ALERT_SERVICE_NODE_PORT}'
 
 
 def success_callback(context):
