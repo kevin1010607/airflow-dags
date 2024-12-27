@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error
+from catboost import CatBoostClassifier, CatBoostRegressor
+from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
 
 from airflow.decorators import dag, task
 from airflow.operators.python import get_current_context
@@ -116,7 +118,9 @@ def model_update():
             model_version = params['model_version']
 
             print(f"Loading model: {model_id}, version: {model_version}")
-            model = _LOAD_MODEL(model_id, model_version)
+            # model = _LOAD_MODEL(model_id, model_version)
+            base_model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6)
+            model = MultiOutputRegressor(base_model)
 
             return model
 
